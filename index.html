@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>找閃閃星星大冒險</title>
+    <title>找閃閃星星 (Find Star Buddy)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -16,9 +16,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #87CEEB;
+            background-color: #f0f3f8;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            touch-action: none; /* 禁用預設滑動以利雙指縮放 */
+            touch-action: none;
         }
         #game-container {
             width: 100%;
@@ -30,7 +30,67 @@
             width: 100%;
             height: 100%;
         }
-        /* UI 頂部導航列 */
+
+        /* 介面卡片通用風格 */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* 開始介面 */
+        .start-card {
+            background: #ffffff;
+            padding: 40px 30px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            max-width: 90%;
+            width: 360px;
+        }
+        .start-title {
+            font-size: 32px;
+            color: #ffb703;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+        .start-subtitle {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+
+        /* 按鈕通用 */
+        .btn-main {
+            background: linear-gradient(135deg, #ffb703, #fb8500);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(251, 133, 0, 0.35);
+            transition: transform 0.1s;
+            width: 100%;
+        }
+        .btn-main:active {
+            transform: scale(0.96);
+        }
+
+        /* 遊戲頂部抬頭 UI */
         #ui-header {
             position: absolute;
             top: 15px;
@@ -44,18 +104,16 @@
         }
         .ui-badge {
             background: rgba(255, 255, 255, 0.9);
-            padding: 8px 16px;
+            padding: 8px 18px;
             border-radius: 20px;
             font-size: 18px;
             font-weight: bold;
-            color: #333;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            color: #2b2d42;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             pointer-events: auto;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
-        /* 右側縮放控制按鈕 (備用點擊) */
+
+        /* 右下縮放與重置按鈕 */
         #ui-controls {
             position: absolute;
             bottom: 20px;
@@ -66,15 +124,14 @@
             z-index: 10;
         }
         .ctrl-btn {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             background: white;
             border: none;
             border-radius: 50%;
-            font-size: 22px;
-            font-weight: bold;
-            color: #333;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 20px;
+            color: #2b2d42;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -83,87 +140,48 @@
         .ctrl-btn:active {
             transform: scale(0.9);
         }
-        /* 通關彈窗 */
-        #win-modal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        #win-modal.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .win-card {
-            background: white;
-            padding: 30px 40px;
-            border-radius: 25px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes popUp {
-            0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .win-card h2 {
-            margin: 0 0 15px 0;
-            color: #ff6b81;
-            font-size: 32px;
-        }
-        .next-btn {
-            background: #ff4757;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
-        }
-        .next-btn:active {
-            transform: scale(0.95);
-        }
     </style>
 </head>
 <body>
 
     <div id="game-container">
-        <div id="ui-header">
-            <div class="ui-badge" id="level-badge">🌟 第 1 頁</div>
-            <div class="ui-badge" id="score-badge">找到: 0 / 3</div>
+        <!-- 1. 開始畫面 -->
+        <div id="start-screen" class="overlay-screen">
+            <div class="start-card">
+                <div style="font-size: 60px; margin-bottom: 10px;">⭐</div>
+                <div class="start-title">找閃閃星星</div>
+                <div class="start-subtitle">尋找躲藏在精美圖片裡的星星夥伴！</div>
+                <button class="btn-main" id="btn-start">開始遊戲 🚀</button>
+            </div>
         </div>
 
-        <div id="ui-controls">
+        <!-- 2. 遊戲角落 UI -->
+        <div id="ui-header" class="hidden">
+            <div class="ui-badge" id="level-badge">🖼️ 關卡 1</div>
+            <div class="ui-badge" id="score-badge">⭐ 0 / 3</div>
+        </div>
+
+        <div id="ui-controls" class="hidden">
             <button class="ctrl-btn" id="btn-zoom-in">➕</button>
             <button class="ctrl-btn" id="btn-zoom-out">➖</button>
-            <button class="ctrl-btn" id="btn-reset" title="重置視圖">🏠</button>
+            <button class="ctrl-btn" id="btn-reset">🏠</button>
         </div>
 
         <canvas id="gameCanvas"></canvas>
 
-        <div id="win-modal">
-            <div class="win-card">
-                <h2>🎉 太棒了！</h2>
-                <p style="font-size: 18px; color: #666; margin-bottom: 20px;">你把這一頁所有的星星都找出來囉！</p>
-                <button class="next-btn" id="btn-next-level">下一頁繪本 🚀</button>
+        <!-- 3. 通關彈窗 -->
+        <div id="win-modal" class="overlay-screen hidden">
+            <div class="start-card">
+                <div style="font-size: 60px; margin-bottom: 10px;">🎉</div>
+                <div class="start-title" style="color: #48bb78;">太棒了！</div>
+                <div class="start-subtitle">你把這一幅圖裡的星星全部找出來囉！</div>
+                <button class="btn-main" id="btn-next-level">進入下一張圖 ➔</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Web Audio API 音效生成器
+        // 音效系統
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -174,20 +192,20 @@
                 const gain = audioCtx.createGain();
                 osc.connect(gain); gain.connect(audioCtx.destination);
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now); osc.stop(now + 0.08);
             } else if (type === 'success') {
-                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                [523, 659, 783, 1046].forEach((f, i) => {
                     const o = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
                     o.connect(g); g.connect(audioCtx.destination);
-                    o.frequency.setValueAtTime(freq, now + i * 0.08);
-                    g.gain.setValueAtTime(0.2, now + i * 0.08);
-                    g.gain.linearRampToValueAtTime(0.01, now + i * 0.08 + 0.2);
-                    o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.2);
+                    o.frequency.setValueAtTime(f, now + i * 0.07);
+                    g.gain.setValueAtTime(0.2, now + i * 0.07);
+                    g.gain.linearRampToValueAtTime(0.01, now + i * 0.07 + 0.15);
+                    o.start(now + i * 0.07); o.stop(now + i * 0.07 + 0.15);
                 });
             }
         }
@@ -195,53 +213,50 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 定義繪本一頁的固定畫布比例（16:9 Wide Shot 畫布）
-        const BASE_WIDTH = 1280;
-        const BASE_HEIGHT = 720;
+        // 固定單畫幅基礎尺寸 (像一幅插畫繪本)
+        const CANVAS_WIDTH = 1000;
+        const CANVAS_HEIGHT = 700;
 
         let level = 1;
         let stars = [];
         let scenery = [];
-        let foundMarks = [];
         let particles = [];
         let idleTimer = 0;
 
-        // 攝影機與 Viewport 控制
+        // Viewport 平移與縮放變數
         let scale = 1;
         let minScale = 1;
-        let maxScale = 4;
+        let maxScale = 3;
         let panX = 0;
         let panY = 0;
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            
-            // 計算讓 Wide Shot 整張剛好放入螢幕的最小縮放度
-            const scaleX = canvas.width / BASE_WIDTH;
-            const scaleY = canvas.height / BASE_HEIGHT;
-            minScale = Math.min(scaleX, scaleY);
 
+            // 計算讓整幅畫剛好完美容納在螢幕內（極限縮放比）
+            minScale = Math.min(canvas.width / CANVAS_WIDTH, canvas.height / CANVAS_HEIGHT);
             if (scale < minScale) scale = minScale;
             clampPan();
         }
         window.addEventListener('resize', resizeCanvas);
 
         function clampPan() {
-            // 限制畫布 Pan 的邊界，確保放大後上下左右皆可拉動，且不超出繪本邊緣
-            const scaledWidth = BASE_WIDTH * scale;
-            const scaledHeight = BASE_HEIGHT * scale;
+            const currentW = CANVAS_WIDTH * scale;
+            const currentH = CANVAS_HEIGHT * scale;
 
-            if (scaledWidth <= canvas.width) {
-                panX = (canvas.width - scaledWidth) / 2;
+            // X 軸移動邊界限制
+            if (currentW <= canvas.width) {
+                panX = (canvas.width - currentW) / 2;
             } else {
-                panX = Math.min(0, Math.max(canvas.width - scaledWidth, panX));
+                panX = Math.min(0, Math.max(canvas.width - currentW, panX));
             }
 
-            if (scaledHeight <= canvas.height) {
-                panY = (canvas.height - scaledHeight) / 2;
+            // Y 軸移動邊界限制 (解決無法上下滑動的問題)
+            if (currentH <= canvas.height) {
+                panY = (canvas.height - currentH) / 2;
             } else {
-                panY = Math.min(0, Math.max(canvas.height - scaledHeight, panY));
+                panY = Math.min(0, Math.max(canvas.height - currentH, panY));
             }
         }
 
@@ -254,155 +269,128 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // 隨機生成一幅精緻的 Wide Shot 風景圖
+        // 生成單幅《Find Cats》風格畫作
         function generateLevel() {
             scenery = [];
             stars = [];
-            foundMarks = [];
+            particles = [];
             idleTimer = 0;
 
-            const starCount = 3 + Math.min(level - 1, 2);
+            const targetStarCount = 3 + Math.min(level - 1, 2);
 
-            // 背景山丘
-            scenery.push({ type: 'hill', x: 200, y: 350, w: 500, h: 250, color: '#A8E6CF' });
-            scenery.push({ type: 'hill', x: 650, y: 300, w: 600, h: 300, color: '#DCEDC1' });
-            scenery.push({ type: 'hill', x: 1080, y: 380, w: 450, h: 220, color: '#FFD3B6' });
+            // 背景色系
+            const themeColors = [
+                { bg: '#E8F5E9', hill: '#C8E6C9', path: '#FFF9C4' },
+                { bg: '#E3F2FD', hill: '#BBDEFB', path: '#FFE0B2' },
+                { bg: '#FFF3E0', hill: '#FFE0B2', path: '#E1BEE7' }
+            ][(level - 1) % 3];
 
-            // 蜿蜒小路
-            scenery.push({
-                type: 'road',
-                points: [{x: 0, y: 600}, {x: 350, y: 550}, {x: 700, y: 580}, {x: 1280, y: 520}]
-            });
-
-            // 房屋、樹木、池塘、風車等結構
-            const locations = [
-                { type: 'house', x: 250, y: 480, variant: 1 },
-                { type: 'house', x: 800, y: 450, variant: 2 },
-                { type: 'windmill', x: 1050, y: 360 },
-                { type: 'pond', x: 500, y: 590 },
-                { type: 'tree', x: 120, y: 520 },
-                { type: 'tree', x: 400, y: 460 },
-                { type: 'pine', x: 700, y: 420 },
-                { type: 'pine', x: 920, y: 430 },
-                { type: 'flower_bush', x: 330, y: 580 },
-                { type: 'flower_bush', x: 600, y: 560 },
-                { type: 'rock', x: 440, y: 620 },
-                { type: 'rock', x: 870, y: 490 },
-                { type: 'lamp', x: 200, y: 540 },
-                { type: 'lamp', x: 750, y: 520 }
+            // 1. 生成畫面中的插畫元素
+            const elements = [
+                { type: 'house', x: 200, y: 350, color: '#FF7675' },
+                { type: 'house', x: 750, y: 320, color: '#74B9FF' },
+                { type: 'windmill', x: 880, y: 220 },
+                { type: 'pond', x: 450, y: 520 },
+                { type: 'tree', x: 120, y: 450 },
+                { type: 'tree', x: 340, y: 380 },
+                { type: 'pine', x: 600, y: 280 },
+                { type: 'pine', x: 680, y: 300 },
+                { type: 'bush', x: 280, y: 500 },
+                { type: 'bush', x: 580, y: 480 },
+                { type: 'lamp', x: 300, y: 430 },
+                { type: 'lamp', x: 680, y: 400 },
+                { type: 'rock', x: 380, y: 560 }
             ];
 
-            scenery.push(...locations);
+            scenery = elements;
 
-            // 將星星巧妙融入繪本物件細節中 (例如：煙囪頂、樹枝間、池塘邊、風車葉片)
-            let chosenSpots = [...locations].sort(() => 0.5 - Math.random()).slice(0, starCount);
-            
-            chosenSpots.forEach(spot => {
-                let offsetX = rand(-15, 15);
-                let offsetY = rand(-25, 5);
+            // 2. 將星星自然隱藏在這些細節中
+            let shuffled = [...elements].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < targetStarCount; i++) {
+                let host = shuffled[i];
+                let offset = { x: 0, y: 0 };
 
-                if (spot.type === 'house') offsetY = -45; // 屋頂/煙囪
-                if (spot.type === 'windmill') { offsetX = 0; offsetY = -60; } // 風車頂端
-                if (spot.type === 'tree') offsetY = -20; // 樹葉間
+                if (host.type === 'house') { offset = { x: rand(-10, 10), y: -45 }; }
+                else if (host.type === 'windmill') { offset = { x: 0, y: -50 }; }
+                else if (host.type === 'tree') { offset = { x: rand(-12, 12), y: -20 }; }
+                else if (host.type === 'pond') { offset = { x: rand(-15, 15), y: rand(-8, 8) }; }
+                else { offset = { x: rand(-5, 5), y: -10 }; }
 
                 stars.push({
-                    x: spot.x + offsetX,
-                    y: spot.y + offsetY,
-                    radius: 20,
+                    x: host.x + offset.x,
+                    y: host.y + offset.y,
                     found: false,
-                    hat: rand(0, 3),
                     pulse: Math.random() * 10
                 });
-            });
+            }
 
             resizeCanvas();
             resetView();
             updateUI();
         }
 
-        // 畫布渲染
+        // 畫布繪製迴圈
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
-            // 套用全方位拉動與雙指縮放
             ctx.translate(panX, panY);
             ctx.scale(scale, scale);
 
-            // 1. 天空背景
-            let skyGradient = ctx.createLinearGradient(0, 0, 0, BASE_HEIGHT);
-            skyGradient.addColorStop(0, '#87CEEB');
-            skyGradient.addColorStop(1, '#E0F7FA');
-            ctx.fillStyle = skyGradient;
-            ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+            // 畫布外框/紙張質感
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-            // 太陽與雲朵
-            ctx.fillStyle = '#FFF9C4';
-            ctx.beginPath(); ctx.arc(150, 120, 50, 0, Math.PI * 2); ctx.fill();
+            // 畫布背景背景
+            ctx.fillStyle = '#EBF5FB';
+            ctx.fillRect(10, 10, CANVAS_WIDTH - 20, CANVAS_HEIGHT - 20);
 
-            // 山丘
-            scenery.filter(s => s.type === 'hill').forEach(h => {
-                ctx.fillStyle = h.color;
-                ctx.beginPath();
-                ctx.ellipse(h.x, h.y, h.w/2, h.h/2, 0, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // 草地主體
-            ctx.fillStyle = '#A5D6A7';
+            // 山丘背景
+            ctx.fillStyle = '#D5F5E3';
             ctx.beginPath();
-            ctx.moveTo(0, 420);
-            ctx.quadraticCurveTo(640, 380, 1280, 430);
-            ctx.lineTo(1280, BASE_HEIGHT);
-            ctx.lineTo(0, BASE_HEIGHT);
-            ctx.closePath();
+            ctx.ellipse(300, 320, 250, 120, 0, 0, Math.PI * 2);
+            ctx.ellipse(750, 300, 280, 140, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 道路
-            scenery.filter(s => s.type === 'road').forEach(road => {
-                ctx.strokeStyle = '#FFE0B2';
-                ctx.lineWidth = 30;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                road.points.forEach((pt, idx) => {
-                    if (idx === 0) ctx.moveTo(pt.x, pt.y);
-                    else ctx.lineTo(pt.x, pt.y);
-                });
-                ctx.stroke();
-            });
+            // 小路
+            ctx.strokeStyle = '#FCF3CF';
+            ctx.lineWidth = 35;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(100, 600);
+            ctx.quadraticCurveTo(500, 480, 900, 580);
+            ctx.stroke();
 
-            // 物件與景物
-            scenery.filter(s => s.type !== 'hill' && s.type !== 'road').forEach(drawSceneryItem);
-
-            // 找到星星後的金星印記
-            foundMarks.forEach(m => {
-                ctx.font = '16px sans-serif';
-                ctx.fillText('✨', m.x - 8, m.y + 6);
-            });
+            // 繪製插畫物件
+            scenery.forEach(drawItem);
 
             // 繪製未找到的星星
             stars.forEach(star => {
                 if (!star.found) {
                     star.pulse += 0.05;
-                    let scaleBounce = 1 + Math.sin(star.pulse) * 0.12;
-                    
+                    let bounce = 1 + Math.sin(star.pulse) * 0.12;
+
                     ctx.save();
                     ctx.translate(star.x, star.y);
-                    
-                    if (idleTimer > 120) { // 閒置過久發光
+
+                    if (idleTimer > 150) { // 停留超過提示
                         ctx.shadowColor = '#FFD700';
-                        ctx.shadowBlur = 15 + Math.sin(Date.now() / 150) * 10;
+                        ctx.shadowBlur = 12 + Math.sin(Date.now() / 150) * 8;
                     }
 
-                    ctx.scale(scaleBounce, scaleBounce);
-                    drawMarioStar(0, 0, star.hat);
+                    ctx.scale(bounce, bounce);
+                    drawMarioStar(0, 0);
                     ctx.restore();
+                } else {
+                    // 已找到留下的金色標記
+                    ctx.font = '16px sans-serif';
+                    ctx.fillText('✨', star.x - 8, star.y + 6);
                 }
             });
 
             // 粒子特效
             particles.forEach((p, idx) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                p.x += p.vx; p.y += p.vy; p.life -= 0.03;
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
@@ -413,234 +401,224 @@
             ctx.restore();
         }
 
-        // 繪製馬力歐星星 (適當微型化以藏在細節中)
-        function drawMarioStar(x, y, hat) {
-            ctx.save();
-            ctx.translate(x, y);
-
-            ctx.fillStyle = '#FFD700';
-            ctx.strokeStyle = '#E67E22';
-            ctx.lineWidth = 2.5;
+        // 畫經典大眼星星
+        function drawMarioStar(x, y) {
+            ctx.fillStyle = '#FFD166';
+            ctx.strokeStyle = '#F77F00';
+            ctx.lineWidth = 2;
             ctx.beginPath();
             for (let i = 0; i < 5; i++) {
-                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 18, -Math.sin((18 + i * 72) * Math.PI / 180) * 18);
-                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 8, -Math.sin((54 + i * 72) * Math.PI / 180) * 8);
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 16, -Math.sin((18 + i * 72) * Math.PI / 180) * 16);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 7, -Math.sin((54 + i * 72) * Math.PI / 180) * 7);
             }
             ctx.closePath();
             ctx.fill(); ctx.stroke();
 
-            // 大眼睛
+            // 眼睛
             ctx.fillStyle = '#000';
-            ctx.beginPath(); ctx.ellipse(-4, -1, 2, 4, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(4, -1, 2, 4, 0, 0, Math.PI * 2); ctx.fill();
-
-            ctx.restore();
+            ctx.beginPath(); ctx.ellipse(-3, -1, 1.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(3, -1, 1.5, 3, 0, 0, Math.PI * 2); ctx.fill();
         }
 
-        function drawSceneryItem(item) {
+        function drawItem(item) {
             ctx.save();
             ctx.translate(item.x, item.y);
             if (item.type === 'house') {
-                ctx.fillStyle = item.variant === 1 ? '#FF8A80' : '#82B1FF';
-                ctx.fillRect(-25, -15, 50, 35);
-                ctx.fillStyle = '#6D4C41';
-                ctx.beginPath(); ctx.moveTo(-30, -15); ctx.lineTo(0, -40); ctx.lineTo(30, -15); ctx.fill();
-                ctx.fillRect(10, -38, 8, 15); // 煙囪
-                ctx.fillStyle = '#3E2723'; ctx.fillRect(-8, 5, 16, 15);
+                ctx.fillStyle = item.color;
+                ctx.fillRect(-22, -15, 44, 32);
+                ctx.fillStyle = '#7F8C8D';
+                ctx.beginPath(); ctx.moveTo(-26, -15); ctx.lineTo(0, -38); ctx.lineTo(26, -15); ctx.fill();
             } else if (item.type === 'windmill') {
-                ctx.fillStyle = '#CFD8DC';
-                ctx.beginPath(); ctx.moveTo(-15, 30); ctx.lineTo(-10, -40); ctx.lineTo(10, -40); ctx.lineTo(15, 30); ctx.fill();
-                // 扇葉
-                ctx.strokeStyle = '#78909C'; ctx.lineWidth = 3;
-                let a = Date.now() / 1000;
+                ctx.fillStyle = '#BDC3C7';
+                ctx.beginPath(); ctx.moveTo(-12, 25); ctx.lineTo(-8, -35); ctx.lineTo(8, -35); ctx.lineTo(12, 25); ctx.fill();
+                ctx.strokeStyle = '#7F8C8D'; ctx.lineWidth = 2.5;
+                let a = Date.now() / 1200;
                 for(let i=0; i<4; i++){
-                    ctx.beginPath(); ctx.moveTo(0, -40);
-                    ctx.lineTo(Math.cos(a + i*Math.PI/2)*35, -40 + Math.sin(a + i*Math.PI/2)*35);
+                    ctx.beginPath(); ctx.moveTo(0, -35);
+                    ctx.lineTo(Math.cos(a + i*Math.PI/2)*30, -35 + Math.sin(a + i*Math.PI/2)*30);
                     ctx.stroke();
                 }
             } else if (item.type === 'tree') {
-                ctx.fillStyle = '#8D6E63'; ctx.fillRect(-5, 0, 10, 25);
-                ctx.fillStyle = '#66BB6A'; ctx.beginPath(); ctx.arc(0, -15, 25, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#A0522D'; ctx.fillRect(-4, 0, 8, 22);
+                ctx.fillStyle = '#2ECC71'; ctx.beginPath(); ctx.arc(0, -12, 22, 0, Math.PI * 2); ctx.fill();
             } else if (item.type === 'pine') {
-                ctx.fillStyle = '#6D4C41'; ctx.fillRect(-4, 0, 8, 20);
-                ctx.fillStyle = '#388E3C';
-                ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(-20, 5); ctx.lineTo(20, 5); ctx.fill();
+                ctx.fillStyle = '#A0522D'; ctx.fillRect(-3, 0, 6, 18);
+                ctx.fillStyle = '#27AE60';
+                ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(-16, 4); ctx.lineTo(16, 4); ctx.fill();
             } else if (item.type === 'pond') {
-                ctx.fillStyle = '#4FC3F7'; ctx.beginPath(); ctx.ellipse(0, 0, 35, 20, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#3498DB'; ctx.beginPath(); ctx.ellipse(0, 0, 32, 18, 0, 0, Math.PI * 2); ctx.fill();
             } else if (item.type === 'lamp') {
-                ctx.fillStyle = '#455A64'; ctx.fillRect(-2, -15, 4, 30);
-                ctx.fillStyle = '#FFF176'; ctx.beginPath(); ctx.arc(0, -18, 7, 0, Math.PI * 2); ctx.fill();
-            } else if (item.type === 'rock') {
-                ctx.fillStyle = '#B0BEC5'; ctx.beginPath(); ctx.arc(0, 5, 12, 0, Math.PI * 2); ctx.fill();
-            } else if (item.type === 'flower_bush') {
-                ctx.fillStyle = '#81C784'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FF4081'; ctx.beginPath(); ctx.arc(-4, -3, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#34495E'; ctx.fillRect(-2, -12, 4, 24);
+                ctx.fillStyle = '#F1C40F'; ctx.beginPath(); ctx.arc(0, -15, 6, 0, Math.PI * 2); ctx.fill();
+            } else if (item.type === 'bush') {
+                ctx.fillStyle = '#58D68D'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
             }
             ctx.restore();
         }
 
         function createParticles(x, y) {
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 15; i++) {
                 particles.push({
                     x: x, y: y,
-                    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
-                    size: rand(3, 7),
-                    color: ['#FFD700', '#FF6B81', '#4D96FF', '#6BCB77'][rand(0, 3)],
+                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+                    size: rand(3, 6),
+                    color: ['#FFD166', '#EF476F', '#118AB2', '#06D6A0'][rand(0, 3)],
                     life: 1.0
                 });
             }
         }
 
         function updateUI() {
-            document.getElementById('level-badge').innerText = `🌟 第 ${level} 頁`;
+            document.getElementById('level-badge').innerText = `🖼️ 關卡 ${level}`;
             const foundCount = stars.filter(s => s.found).length;
-            document.getElementById('score-badge').innerText = `找到: ${foundCount} / ${stars.length}`;
+            document.getElementById('score-badge').innerText = `⭐ ${foundCount} / ${stars.length}`;
         }
 
-        // --- 手勢控制核心 (支援雙指縮放 Pinch-Zoom 與 360° 拖曳 Pan) ---
-        let evCache = [];
-        let prevDiff = -1;
-        let isPanning = false;
-        let startPanX = 0, startPanY = 0;
-        let startTouchX = 0, startTouchY = 0;
-        let isMultiTouch = false;
+        // --- 修正後的完美觸控/平移/雙指縮放處理機制 ---
+        let activePointers = [];
+        let prevPinchDist = -1;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let initialPanX = 0, initialPanY = 0;
 
         const container = document.getElementById('game-container');
 
         container.addEventListener('pointerdown', (e) => {
-            evCache.push(e);
-            if (evCache.length === 1) {
-                isPanning = true;
-                isMultiTouch = false;
-                startPanX = panX;
-                startPanY = panY;
-                startTouchX = e.clientX;
-                startTouchY = e.clientY;
-            } else if (evCache.length === 2) {
-                isMultiTouch = true;
-                isPanning = false;
+            activePointers.push(e);
+            if (activePointers.length === 1) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialPanX = panX;
+                initialPanY = panY;
+            } else if (activePointers.length === 2) {
+                isDragging = false;
+                prevPinchDist = Math.hypot(
+                    activePointers[0].clientX - activePointers[1].clientX,
+                    activePointers[0].clientY - activePointers[1].clientY
+                );
             }
         });
 
         container.addEventListener('pointermove', (e) => {
-            // 更新快取中的觸控點
-            for (let i = 0; i < evCache.length; i++) {
-                if (e.pointerId === evCache[i].pointerId) {
-                    evCache[i] = e;
+            // 更新目前觸控點位置
+            for (let i = 0; i < activePointers.length; i++) {
+                if (activePointers[i].pointerId === e.pointerId) {
+                    activePointers[i] = e;
                     break;
                 }
             }
 
-            // 雙指縮放 (Pinch-Zoom)
-            if (evCache.length === 2) {
-                let curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
-                if (prevDiff > 0) {
-                    let zoomFactor = curDiff / prevDiff;
-                    let newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-                    
-                    // 以兩指中心點進行縮放
-                    let centerX = (evCache[0].clientX + evCache[1].clientX) / 2;
-                    let centerY = (evCache[0].clientY + evCache[1].clientY) / 2;
+            // 雙指手勢：縮放 (Pinch)
+            if (activePointers.length === 2) {
+                let currentDist = Math.hypot(
+                    activePointers[0].clientX - activePointers[1].clientX,
+                    activePointers[0].clientY - activePointers[1].clientY
+                );
 
-                    panX = centerX - (centerX - panX) * (newScale / scale);
-                    panY = centerY - (centerY - panY) * (newScale / scale);
-                    scale = newScale;
+                if (prevPinchDist > 0) {
+                    let factor = currentDist / prevPinchDist;
+                    let nextScale = Math.min(maxScale, Math.max(minScale, scale * factor));
+                    
+                    let centerX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
+                    let centerY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
+
+                    panX = centerX - (centerX - panX) * (nextScale / scale);
+                    panY = centerY - (centerY - panY) * (nextScale / scale);
+                    scale = nextScale;
 
                     clampPan();
                 }
-                prevDiff = curDiff;
+                prevPinchDist = currentDist;
             } 
-            // 單指/滑鼠 上下左右全方位拖曳 (Pan)
-            else if (evCache.length === 1 && isPanning) {
-                let dx = e.clientX - startTouchX;
-                let dy = e.clientY - startTouchY;
+            // 單指/滑鼠：全方位拖曳 (Pan)
+            else if (activePointers.length === 1 && isDragging) {
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
 
-                panX = startPanX + dx;
-                panY = startPanY + dy;
+                panX = initialPanX + dx;
+                panY = initialPanY + dy;
 
                 clampPan();
             }
         });
 
-        function removeEvent(e) {
-            for (let i = 0; i < evCache.length; i++) {
-                if (evCache[i].pointerId === e.pointerId) {
-                    evCache.splice(i, 1);
-                    break;
+        function handlePointerUp(e) {
+            // 判斷短點擊事件 (單指且無移動)
+            if (activePointers.length === 1 && isDragging) {
+                let distMoved = Math.hypot(e.clientX - startX, e.clientY - startY);
+                if (distMoved < 8) {
+                    handleTap(e.clientX, e.clientY);
                 }
             }
-            if (evCache.length < 2) prevDiff = -1;
-            if (evCache.length === 0) isPanning = false;
+
+            // 清理釋放的指尖
+            activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
+            if (activePointers.length < 2) prevPinchDist = -1;
+            if (activePointers.length === 0) isDragging = false;
         }
 
-        container.addEventListener('pointerup', (e) => {
-            // 判斷點擊事件（非拖曳與雙指時）
-            if (!isMultiTouch && Math.hypot(e.clientX - startTouchX, e.clientY - startTouchY) < 10) {
-                handleTap(e.clientX, e.clientY);
-            }
-            removeEvent(e);
-        });
-        container.addEventListener('pointercancel', removeEvent);
+        container.addEventListener('pointerup', handlePointerUp);
+        container.addEventListener('pointercancel', handlePointerUp);
 
-        // 點擊判定
+        // 點擊判定邏輯
         function handleTap(screenX, screenY) {
-            // 將螢幕座標轉換回 1280x720 的畫布原生地圖座標
             const canvasX = (screenX - panX) / scale;
             const canvasY = (screenY - panY) / scale;
 
-            let clickedStar = false;
+            let hitStar = false;
             stars.forEach(star => {
-                if (!star.found && Math.hypot(canvasX - star.x, canvasY - star.y) < 35) {
+                if (!star.found && Math.hypot(canvasX - star.x, canvasY - star.y) < 32) {
                     star.found = true;
-                    clickedStar = true;
+                    hitStar = true;
                     idleTimer = 0;
-                    foundMarks.push({ x: star.x, y: star.y });
                     createParticles(star.x, star.y);
                     playSound('success');
 
                     updateUI();
 
+                    // 通關判定
                     if (stars.every(s => s.found)) {
                         setTimeout(() => {
-                            document.getElementById('win-modal').classList.add('show');
-                        }, 500);
+                            document.getElementById('win-modal').classList.remove('hidden');
+                        }, 400);
                     }
                 }
             });
 
-            if (!clickedStar) {
+            if (!hitStar) {
                 playSound('pop');
                 createParticles(canvasX, canvasY);
                 idleTimer = 0;
             }
         }
 
-        // 按鈕點擊控制 (備用)
-        document.getElementById('btn-zoom-in').addEventListener('click', () => {
-            scale = Math.min(maxScale, scale * 1.3);
-            clampPan();
-        });
-        document.getElementById('btn-zoom-out').addEventListener('click', () => {
-            scale = Math.max(minScale, scale / 1.3);
-            clampPan();
-        });
+        // 按鈕綁定
+        document.getElementById('btn-zoom-in').addEventListener('click', () => { scale = Math.min(maxScale, scale * 1.25); clampPan(); });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => { scale = Math.max(minScale, scale / 1.25); clampPan(); });
         document.getElementById('btn-reset').addEventListener('click', resetView);
 
-        // 下一關
+        // 頁面切換控制
+        document.getElementById('btn-start').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('ui-header').classList.remove('hidden');
+            document.getElementById('ui-controls').classList.remove('hidden');
+            generateLevel();
+        });
+
         document.getElementById('btn-next-level').addEventListener('click', () => {
-            document.getElementById('win-modal').classList.remove('show');
+            document.getElementById('win-modal').classList.add('hidden');
             level++;
             generateLevel();
         });
 
-        // 遊戲迴圈
+        // 動畫迴圈
         function gameLoop() {
             idleTimer++;
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        generateLevel();
         gameLoop();
     </script>
 </body>
