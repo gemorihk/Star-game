@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>找閃閃星星大冒險</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+        }
+        #game-container:active {
+            cursor: grabbing;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        /* UI 頂部導航列 */
+        #ui-header {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .ui-badge {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        /* 右側控制按鈕群 */
+        #ui-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+        .ctrl-btn {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+        }
+        .ctrl-btn:active {
+            transform: scale(0.9);
+        }
+        /* 通關彈窗 */
+        #win-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #win-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .win-card {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popUp {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .win-card h2 {
+            margin: 0 0 15px 0;
+            color: #ff6b81;
+            font-size: 32px;
+        }
+        .next-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+            transition: transform 0.1s;
+        }
+        .next-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-header">
+            <div class="ui-badge" id="level-badge">🌟 第 1 關</div>
+            <div class="ui-badge" id="score-badge">找到: 0 / 3</div>
+        </div>
+
+        <div id="ui-controls">
+            <button class="ctrl-btn" id="btn-zoom-in">➕</button>
+            <button class="ctrl-btn" id="btn-zoom-out">➖</button>
+            <button class="ctrl-btn" id="btn-reset" title="重置視圖">🏠</button>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="win-modal">
+            <div class="win-card">
+                <h2>🎉 太棒了！</h2>
+                <p style="font-size: 18px; color: #666; margin-bottom: 20px;">你把所有的星星都找出來囉！</p>
+                <button class="next-btn" id="btn-next-level">進入下一關 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 音效生成器 (Web Audio API)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'pop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'success') {
+                // 歡呼三連音
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + i * 0.08);
+                    g.gain.setValueAtTime(0.2, now + i * 0.08);
+                    g.gain.linearRampToValueAtTime(0.01, now + i * 0.08 + 0.2);
+                    o.start(now + i * 0.08);
+                    o.stop(now + i * 0.08 + 0.2);
+                });
+            } else if (type === 'click') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        // 遊戲核心變數
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let worldWidth = 2400;
+        let worldHeight = 1800;
+        let camera = { x: 0, y: 0, scale: 1, minScale: 0.5, maxScale: 2.5 };
+
+        let level = 1;
+        let stars = [];
+        let scenery = [];
+        let foundMarks = []; // 已找到星星留下的印記
+        let particles = [];
+        let idleTimer = 0;
+
+        // 初始化畫布大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 隨機整數
+        function rand(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // 產生關卡世界
+        function generateLevel() {
+            scenery = [];
+            stars = [];
+            foundMarks = [];
+            idleTimer = 0;
+
+            // 根據關卡擴大世界
+            worldWidth = 2000 + level * 600;
+            worldHeight = 1500 + level * 500;
+
+            const starCount = Math.min(3 + Math.floor(level / 2), 8);
+
+            // 1. 生成山丘
+            const hillCount = 6 + level * 2;
+            for (let i = 0; i < hillCount; i++) {
+                scenery.push({
+                    type: 'hill',
+                    x: rand(100, worldWidth - 100),
+                    y: rand(150, worldHeight - 150),
+                    w: rand(300, 700),
+                    h: rand(120, 280),
+                    color: ['#A8E6CF', '#DCEDC1', '#FFD3B6', '#FFAAA6'][rand(0, 3)]
+                });
+            }
+
+            // 2. 生成道路
+            const roadCount = 3 + level;
+            for (let i = 0; i < roadCount; i++) {
+                let pts = [];
+                let cx = rand(100, 400);
+                let cy = rand(100, worldHeight - 100);
+                for (let p = 0; p < rand(4, 7); p++) {
+                    pts.push({x: cx, y: cy});
+                    cx += rand(200, 400);
+                    cy += rand(-150, 150);
+                }
+                scenery.push({ type: 'road', points: pts });
+            }
+
+            // 3. 生成建築、樹木、池塘、石頭等細節物件
+            const detailCount = 20 + level * 8;
+            let possibleDetails = ['house', 'tree', 'pine', 'rock', 'pond', 'lamp', 'flower_bush'];
+            
+            for (let i = 0; i < detailCount; i++) {
+                let type = possibleDetails[rand(0, possibleDetails.length - 1)];
+                let item = {
+                    type: type,
+                    x: rand(150, worldWidth - 150),
+                    y: rand(150, worldHeight - 150),
+                    size: rand(30, 70),
+                    variant: rand(1, 3)
+                };
+                scenery.push(item);
+            }
+
+            // 4. 隨機安放星星（隱藏在細節附近或上方）
+            for (let i = 0; i < starCount; i++) {
+                // 挑選一個細節物件作為依附點
+                let host = scenery[rand(Math.floor(scenery.length / 2), scenery.length - 1)];
+                stars.push({
+                    x: host.x + rand(-30, 30),
+                    y: host.y + rand(-30, 30),
+                    radius: 32,
+                    found: false,
+                    angle: Math.random() * Math.PI * 2,
+                    hat: rand(0, 3), // 0:無, 1:派對帽, 2:蝴蝶結, 3:小眼鏡
+                    pulse: Math.random() * 10
+                });
+            }
+
+            // 初始鏡頭置中
+            camera.scale = Math.max(canvas.width / worldWidth, canvas.height / worldHeight);
+            camera.x = (worldWidth * camera.scale - canvas.width) / 2 / camera.scale;
+            camera.y = (worldHeight * camera.scale - canvas.height) / 2 / camera.scale;
+
+            updateUI();
+        }
+
+        // 繪製世界
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.scale(camera.scale, camera.scale);
+            ctx.translate(-camera.x, -camera.y);
+
+            // 繪製草地背景
+            ctx.fillStyle = '#C8E6C9';
+            ctx.fillRect(0, 0, worldWidth, worldHeight);
+
+            // 繪製格線裝飾（大地質感）
+            ctx.strokeStyle = '#B5D8B6';
+            ctx.lineWidth = 2;
+            for (let x = 0; x < worldWidth; x += 150) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, worldHeight); ctx.stroke();
+            }
+            for (let y = 0; y < worldHeight; y += 150) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(worldWidth, y); ctx.stroke();
+            }
+
+            // 繪製山丘
+            scenery.filter(s => s.type === 'hill').forEach(hill => {
+                ctx.fillStyle = hill.color;
+                ctx.beginPath();
+                ctx.ellipse(hill.x, hill.y, hill.w/2, hill.h/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 繪製道路
+            scenery.filter(s => s.type === 'road').forEach(road => {
+                ctx.strokeStyle = '#D7CCC8';
+                ctx.lineWidth = 45;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                road.points.forEach((pt, idx) => {
+                    if (idx === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.stroke();
+            });
+
+            // 繪製環境細節與物件
+            scenery.filter(s => s.type !== 'hill' && s.type !== 'road').forEach(item => {
+                drawSceneryItem(item);
+            });
+
+            // 繪製已找到的星星印記
+            foundMarks.forEach(m => {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+                ctx.beginPath();
+                ctx.arc(m.x, m.y, 25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.font = '20px sans-serif';
+                ctx.fillText('✨', m.x - 10, m.y + 7);
+            });
+
+            // 繪製未找到的星星
+            stars.forEach(star => {
+                if (!star.found) {
+                    star.pulse += 0.05;
+                    let scaleBounce = 1 + Math.sin(star.pulse) * 0.15;
+                    
+                    ctx.save();
+                    ctx.translate(star.x, star.y);
+                    
+                    // 若閒置過久發光提示
+                    if (idleTimer > 100) {
+                        ctx.shadowColor = '#FFD700';
+                        ctx.shadowBlur = 25 + Math.sin(Date.now() / 150) * 15;
+                    }
+
+                    ctx.scale(scaleBounce, scaleBounce);
+                    drawMarioStar(0, 0, star.hat);
+                    ctx.restore();
+                }
+            });
+
+            // 繪製粒子特效
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            ctx.restore();
+        }
+
+        // 繪製馬力歐風格大眼星星
+        function drawMarioStar(x, y, hat) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 星星外形
+            ctx.fillStyle = '#FFD700';
+            ctx.strokeStyle = '#FF8C00';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 32, -Math.sin((18 + i * 72) * Math.PI / 180) * 32);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 15, -Math.sin((54 + i * 72) * Math.PI / 180) * 15);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 大眼睛
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            
+            // 左眼
+            ctx.beginPath();
+            ctx.ellipse(-8, -2, 6, 9, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            // 右眼
+            ctx.beginPath();
+            ctx.ellipse(8, -2, 6, 9, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // 眼珠
+            ctx.fillStyle = '#000000';
+            ctx.beginPath(); ctx.arc(-7, -1, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(9, -1, 3, 0, Math.PI * 2); ctx.fill();
+
+            // 微笑口型
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(1, 6, 7, 0, Math.PI);
+            ctx.stroke();
+
+            // 裝飾帽/配件
+            if (hat === 1) { // 派對帽
+                ctx.fillStyle = '#FF4757';
+                ctx.beginPath();
+                ctx.moveTo(0, -35); ctx.lineTo(-12, -15); ctx.lineTo(12, -15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#FFF';
+                ctx.beginPath(); ctx.arc(0, -36, 4, 0, Math.PI * 2); ctx.fill();
+            } else if (hat === 2) { // 蝴蝶結
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath();
+                ctx.ellipse(-12, -25, 8, 5, 0.5, 0, Math.PI * 2);
+                ctx.ellipse(12, -25, 8, 5, -0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath(); ctx.arc(0, -25, 4, 0, Math.PI * 2); ctx.fill();
+            } else if (hat === 3) { // 酷炫眼鏡
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-16, -10, 12, 10);
+                ctx.strokeRect(4, -10, 12, 10);
+                ctx.beginPath(); ctx.moveTo(-4, -5); ctx.lineTo(4, -5); ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // 繪製環境細節物件
+        function drawSceneryItem(item) {
+            ctx.save();
+            ctx.translate(item.x, item.y);
+            if (item.type === 'house') {
+                // 小屋
+                ctx.fillStyle = item.variant === 1 ? '#FF6B6B' : (item.variant === 2 ? '#4D96FF' : '#6BCB77');
+                ctx.fillRect(-30, -20, 60, 45);
+                // 屋頂
+                ctx.fillStyle = '#8D4004';
+                ctx.beginPath();
+                ctx.moveTo(-35, -20); ctx.lineTo(0, -50); ctx.lineTo(35, -20);
+                ctx.closePath(); ctx.fill();
+                // 門
+                ctx.fillStyle = '#553311';
+                ctx.fillRect(-10, 5, 20, 20);
+            } else if (item.type === 'tree') {
+                // 圓樹冠
+                ctx.fillStyle = '#8D6E63';
+                ctx.fillRect(-6, 0, 12, 35);
+                ctx.fillStyle = '#4CAF50';
+                ctx.beginPath(); ctx.arc(0, -15, 30, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#66BB6A';
+                ctx.beginPath(); ctx.arc(-10, -20, 18, 0, Math.PI * 2); ctx.fill();
+            } else if (item.type === 'pine') {
+                // 松樹
+                ctx.fillStyle = '#795548';
+                ctx.fillRect(-5, 10, 10, 25);
+                ctx.fillStyle = '#2E7D32';
+                ctx.beginPath();
+                ctx.moveTo(0, -35); ctx.lineTo(-25, 15); ctx.lineTo(25, 15);
+                ctx.closePath(); ctx.fill();
+            } else if (item.type === 'rock') {
+                // 石頭堆
+                ctx.fillStyle = '#90A4AE';
+                ctx.beginPath(); ctx.arc(0, 10, 22, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#B0BEC5';
+                ctx.beginPath(); ctx.arc(-8, 5, 14, 0, Math.PI * 2); ctx.fill();
+            } else if (item.type === 'pond') {
+                // 小池塘
+                ctx.fillStyle = '#29B6F6';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 40, 25, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0288D1';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            } else if (item.type === 'lamp') {
+                // 路燈
+                ctx.fillStyle = '#37474F';
+                ctx.fillRect(-3, -20, 6, 45);
+                ctx.fillStyle = '#FFD54F';
+                ctx.beginPath(); ctx.arc(0, -25, 10, 0, Math.PI * 2); ctx.fill();
+            } else if (item.type === 'flower_bush') {
+                // 花叢
+                ctx.fillStyle = '#81C784';
+                ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#FFEB3B';
+                ctx.beginPath(); ctx.arc(-8, -5, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#FF4081';
+                ctx.beginPath(); ctx.arc(8, 5, 5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // 粒子爆炸效果
+        function createParticles(x, y) {
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: rand(4, 9),
+                    color: ['#FFD700', '#FF6B81', '#4D96FF', '#6BCB77'][rand(0, 3)],
+                    life: 1.0
+                });
+            }
+        }
+
+        // 更新介面文字
+        function updateUI() {
+            document.getElementById('level-badge').innerText = `🌟 第 ${level} 關`;
+            const foundCount = stars.filter(s => s.found).length;
+            document.getElementById('score-badge').innerText = `找到: ${foundCount} / ${stars.length}`;
+        }
+
+        // 觸控與滑鼠互動（平移與點擊）
+        let isDragging = false;
+        let startX, startY;
+        let hasMoved = false;
+
+        const container = document.getElementById('game-container');
+
+        container.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            hasMoved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        container.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.hypot(dx, dy) > 5) hasMoved = true;
+
+            camera.x -= dx / camera.scale;
+            camera.y -= dy / camera.scale;
+
+            // 限制邊界
+            camera.x = Math.max(0, Math.min(worldWidth - canvas.width / camera.scale, camera.x));
+            camera.y = Math.max(0, Math.min(worldHeight - canvas.height / camera.scale, camera.y));
+
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        container.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            if (!hasMoved) {
+                // 點擊判定
+                const rect = canvas.getBoundingClientRect();
+                const clickX = (e.clientX - rect.left) / camera.scale + camera.x;
+                const clickY = (e.clientY - rect.top) / camera.scale + camera.y;
+
+                let clickedStar = false;
+                stars.forEach(star => {
+                    if (!star.found && Math.hypot(clickX - star.x, clickY - star.y) < 45) {
+                        star.found = true;
+                        clickedStar = true;
+                        idleTimer = 0;
+                        foundMarks.push({ x: star.x, y: star.y });
+                        createParticles(star.x, star.y);
+                        playSound('success');
+
+                        updateUI();
+
+                        // 檢查是否全關過關
+                        if (stars.every(s => s.found)) {
+                            setTimeout(() => {
+                                document.getElementById('win-modal').classList.add('show');
+                            }, 500);
+                        }
+                    }
+                });
+
+                if (!clickedStar) {
+                    playSound('pop');
+                    createParticles(clickX, clickY);
+                    idleTimer = 0;
+                }
+            }
+        });
+
+        // 縮放按鈕事件
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            camera.scale = Math.min(camera.maxScale, camera.scale * 1.25);
+        });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            camera.scale = Math.max(camera.minScale, camera.scale / 1.25);
+        });
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            camera.scale = Math.max(canvas.width / worldWidth, canvas.height / worldHeight);
+            camera.x = (worldWidth * camera.scale - canvas.width) / 2 / camera.scale;
+            camera.y = (worldHeight * camera.scale - canvas.height) / 2 / camera.scale;
+        });
+
+        // 下一關按鈕
+        document.getElementById('btn-next-level').addEventListener('click', () => {
+            document.getElementById('win-modal').classList.remove('show');
+            level++;
+            generateLevel();
+        });
+
+        // 遊戲主迴圈
+        function gameLoop() {
+            idleTimer++;
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 初始化啟動
+        generateLevel();
+        gameLoop();
+    </script>
+</body>
+</html>
